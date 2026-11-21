@@ -1,16 +1,13 @@
+import { Link } from "@tanstack/react-router";
 import { getSocialLinks } from "@/lib/contact";
+import type { SiteContent } from "@/lib/site/content";
 import { Wordmark } from "./logo";
 
-const LINKS = [
-  { id: "ana", label: "Ana səhifə" },
-  { id: "xidmetler", label: "Xidmətlər" },
-  { id: "layiheler", label: "Layihələr" },
-  { id: "haqqimizda", label: "Haqqımızda" },
-  { id: "elaqe", label: "Əlaqə" },
-];
+const IDS = ["ana", "xidmetler", "layiheler", "haqqimizda", "elaqe"] as const;
 
-export function Footer() {
+export function Footer({ nav, footer }: { nav: SiteContent["nav"]; footer: SiteContent["footer"] }) {
   const socials = getSocialLinks();
+  const links = IDS.map((id) => ({ id, label: nav[id] }));
   return (
     <footer className="mx-auto mt-14 w-full max-w-6xl px-4 pb-8 sm:px-6">
       <div className="win-dark">
@@ -20,9 +17,9 @@ export function Footer() {
         <div className="grid gap-6 p-4 sm:p-5 lg:grid-cols-[minmax(0,16rem)_1fr] lg:items-center">
           <Wordmark className="max-w-xs" />
           <div>
-            <p className="font-pixel text-2xl text-amber">DIGITAL CREATIVE STUDIO</p>
+            <p className="font-pixel text-2xl text-amber">{footer.tagline}</p>
             <nav className="mt-3 flex flex-wrap gap-x-4 gap-y-2" aria-label="Alt">
-              {LINKS.map((link) => (
+              {links.map((link) => (
                 <a key={link.id} href={`#${link.id}`} className="font-ui text-sm text-cream underline-offset-2 hover:text-amber hover:underline">
                   {link.label}
                 </a>
@@ -43,7 +40,12 @@ export function Footer() {
                 ))}
               </nav>
             ) : null}
-            <p className="mt-4 font-ui text-xs text-grey">© 2026 VEBINIO. Bütün hüquqlar qorunur.</p>
+            <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 font-ui text-xs text-grey">
+              <span>{footer.copyright}</span>
+              <Link to="/admin" className="underline-offset-2 hover:text-amber hover:underline">
+                İdarə
+              </Link>
+            </p>
           </div>
         </div>
       </div>

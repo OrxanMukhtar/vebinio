@@ -7,17 +7,9 @@ import {
   saveBriefLocally,
   type Brief,
 } from "@/lib/contact";
+import type { SiteContent } from "@/lib/site/content";
 import { SectionHeading } from "./section-heading";
 import { WindowFrame } from "./window-frame";
-
-const SERVICES = [
-  "Veb-saytlar və tətbiqlər",
-  "Brendinq və dizayn",
-  "AI və avtomatlaşdırma",
-  "Rəqəmsal məhsullar",
-  "Texniki dəstək",
-  "Digər",
-];
 
 const schema = z.object({
   name: z.string().trim().min(2, "Ad ən azı 2 simvol olmalıdır."),
@@ -33,7 +25,7 @@ type Status =
   | { kind: "handoff"; text: string }
   | { kind: "local"; text: string };
 
-export function ContactForm() {
+export function ContactForm({ contact }: { contact: SiteContent["contact"] }) {
   const [values, setValues] = useState<Brief>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof Brief, string>>>({});
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -87,11 +79,7 @@ export function ContactForm() {
 
   return (
     <section id="elaqe">
-      <SectionHeading
-        file="ELAQE.EXE"
-        title="Əlaqə"
-        text="Ad, e-poçt və qısa təsvir kifayətdir. Forma yoxlanılır, amma ünvan qoşulmayana qədər mesajı göndərilmiş saymırıq."
-      />
+      <SectionHeading file={contact.file} title={contact.title} text={contact.text} />
       <WindowFrame title="YENI-MESAJ.EXE" status={status.kind === "idle" ? "Gözləyir" : "Qeyd olundu"}>
         <form className="grid gap-3 p-4 sm:p-5" onSubmit={onSubmit} noValidate>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -124,7 +112,7 @@ export function ContactForm() {
               onChange={(event) => update("service", event.target.value)}
             >
               <option value="">Xidmət seçin</option>
-              {SERVICES.map((service) => (
+              {contact.services.map((service) => (
                 <option key={service} value={service}>
                   {service}
                 </option>

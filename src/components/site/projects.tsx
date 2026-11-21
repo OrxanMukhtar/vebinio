@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import type { SiteContent } from "@/lib/site/content";
 import { Dialog } from "./dialog";
 import { SectionHeading } from "./section-heading";
 
@@ -125,20 +126,23 @@ function Mock({ kind }: { kind: Project["mock"] }) {
   );
 }
 
-export function Projects() {
+export function Projects({ projects }: { projects: SiteContent["projects"] }) {
+  const items = PROJECTS.map((item, index) => ({
+    ...item,
+    title: projects.items[index].title,
+    category: projects.items[index].category,
+    summary: projects.items[index].summary,
+    detail: projects.items[index].detail,
+  }));
   const [openId, setOpenId] = useState<string | null>(null);
-  const project = PROJECTS.find((item) => item.id === openId) ?? null;
+  const project = items.find((item) => item.id === openId) ?? null;
   const close = useCallback(() => setOpenId(null), []);
 
   return (
     <section id="layiheler">
-      <SectionHeading
-        file="LAYIHELER.EXE"
-        title="Seçilmiş layihələr"
-        text="Hər layihənin arxasında bir ideya, düzgün yanaşma və diqqətli icra dayanır."
-      />
+      <SectionHeading file={projects.file} title={projects.title} text={projects.text} />
       <div className="grid gap-3 md:grid-cols-2">
-        {PROJECTS.map((item) => (
+        {items.map((item) => (
           <article key={item.id} className="win-dark flex flex-col">
             <div className="win-title-dark flex items-center gap-2 px-2">
               <p className="font-pixel text-lg text-amber">KONSEPT</p>

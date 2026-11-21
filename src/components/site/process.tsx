@@ -1,15 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import type { SiteContent } from "@/lib/site/content";
 import { SectionHeading } from "./section-heading";
 import { WindowFrame } from "./window-frame";
 
-const STEPS = [
-  { n: "01", title: "Brief", text: "İdeyanızı və ehtiyaclarınızı öyrənirik." },
-  { n: "02", title: "Plan", text: "Layihənin strukturunu və həll yolunu müəyyənləşdiririk." },
-  { n: "03", title: "Create", text: "Dizaynı və texniki icranı həyata keçiririk." },
-  { n: "04", title: "Launch", text: "Layihəni istifadəyə veririk və lazım olduqda dəstək göstəririk." },
-];
-
-export function Process() {
+export function Process({ process }: { process: SiteContent["process"] }) {
   const [step, setStep] = useState(1);
   const rootRef = useRef<HTMLElement>(null);
   const played = useRef(false);
@@ -49,7 +43,7 @@ export function Process() {
 
   return (
     <section id="proses" ref={rootRef}>
-      <SectionHeading file="PROSES.EXE" title="Necə işləyirik?" />
+      <SectionHeading file={process.file} title={process.title} />
       <WindowFrame title="SETUP.EXE" status={`${step} / 4 addım`}>
         <div className="space-y-4 p-4">
           <div className="progress-seg" aria-hidden="true">
@@ -58,7 +52,7 @@ export function Process() {
             ))}
           </div>
           <ol className="grid gap-2 sm:grid-cols-2">
-            {STEPS.map((item, index) => {
+            {process.steps.map((item, index) => {
               const active = index < step;
               return (
                 <li key={item.n}>

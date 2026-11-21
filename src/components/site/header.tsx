@@ -1,26 +1,22 @@
 import { useEffect, useState } from "react";
+import type { SiteContent } from "@/lib/site/content";
 import { Mark } from "./logo";
 
-const LINKS = [
-  { id: "ana", label: "Ana səhifə" },
-  { id: "xidmetler", label: "Xidmətlər" },
-  { id: "layiheler", label: "Layihələr" },
-  { id: "haqqimizda", label: "Haqqımızda" },
-  { id: "elaqe", label: "Əlaqə" },
-] as const;
+const NAV_IDS = ["ana", "xidmetler", "layiheler", "haqqimizda", "elaqe"] as const;
 
-export function Header() {
+export function Header({ nav }: { nav: SiteContent["nav"] }) {
+  const links = NAV_IDS.map((id) => ({ id, label: nav[id] }));
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<string>("ana");
 
   useEffect(() => {
     const onScroll = () => {
       const line = 104;
-      let current: (typeof LINKS)[number]["id"] = "ana";
-      for (const link of LINKS) {
-        const node = document.getElementById(link.id);
+      let current: (typeof NAV_IDS)[number] = "ana";
+      for (const id of NAV_IDS) {
+        const node = document.getElementById(id);
         if (!node) continue;
-        if (node.getBoundingClientRect().top <= line) current = link.id;
+        if (node.getBoundingClientRect().top <= line) current = id;
       }
       setActive(current);
     };
@@ -46,7 +42,7 @@ export function Header() {
             </span>
           </a>
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Əsas">
-            {LINKS.map((link) => (
+            {links.map((link) => (
               <a
                 key={link.id}
                 href={`#${link.id}`}
@@ -60,7 +56,7 @@ export function Header() {
             ))}
           </nav>
           <a href="#elaqe" data-tone="amber" className="win-btn shrink-0">
-            Layihəni başlayaq
+            {nav.cta}
           </a>
           <button
             type="button"
@@ -78,7 +74,7 @@ export function Header() {
             className="win-light absolute inset-x-0 top-full z-20 mt-1 flex flex-col gap-1 p-2 lg:hidden"
             aria-label="Mobil"
           >
-            {LINKS.map((link) => (
+            {links.map((link) => (
               <a
                 key={link.id}
                 href={`#${link.id}`}
