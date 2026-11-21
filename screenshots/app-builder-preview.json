@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "VEBINIO — Digital Creative Studio",
+      "hasCanvas": false,
+      "bodyTextLen": 3112,
+      "bodyTextHash": "29479288df5f5abe862f1cb4eed1efb1c0bc7fb804593aa0922870a8a8975251",
+      "bodyTextPrefix": "Məzmuna keç VEBINIO VEBINIO.EXE Ana səhifə Xidmətlər Layihələr H",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "VEBINIO — Digital Creative Studio",
+      "hasCanvas": false,
+      "bodyTextLen": 3064,
+      "bodyTextHash": "a6f2f6b474b49e39a9f3aaae80e2f4b377d60f4e4df91c46a18baca9f49d8e4a",
+      "bodyTextPrefix": "Məzmuna keç VEBINIO VEBINIO.EXE Layihəni başlayaq Menyu VEBINIO ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
