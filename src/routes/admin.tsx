@@ -3,8 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { WindowFrame } from "@/components/site/window-frame";
-import { claimOwner, getAdminSession, saveSiteContent } from "@/lib/site/api";
-import { defaultContent, pingContent, type SiteContent } from "@/lib/site/content";
+import { getAdminSession, saveSiteContent } from "@/lib/site/api";
+import { pingContent, type SiteContent } from "@/lib/site/content";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -143,6 +143,7 @@ function AdminPage() {
 function Editor() {
   const [draft, setDraft] = useState<SiteContent | null>(null);
   const [locked, setLocked] = useState(false);
+  const [needsPassword, setNeedsPassword] = useState(false);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -152,13 +153,7 @@ function Editor() {
       const session = await getAdminSession();
       if (stop) return;
       if (!session.hasOwner) {
-        const claimed = await claimOwner();
-        if (!claimed.isOwner) {
-          setLocked(true);
-          return;
-        }
-        const again = await getAdminSession();
-        if (!stop) setDraft(again.content ?? defaultContent);
+        setNeedsPassword(true);
         return;
       }
       if (!session.isOwner || !session.content) {
@@ -187,17 +182,33 @@ function Editor() {
     }
   }
 
+  if (needsPassword) {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-16">
+        <div className="win-light p-4">
+          <h1 className="font-pixel text-3xl text-navy">Giriş lazımdır</h1>
+          <p className="mt-2 font-sans text-sm leading-relaxed text-navy">
+            Redaktə yalnız sizin e-poçt və şifrənizlə açılır. Eyni hesab telefon və başqa kompüterdə də işləyir.
+          </p>
+          <Link to="/login" data-tone="amber" className="win-btn mt-4">
+            Hesabı yarat
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
   if (locked) {
     return (
       <main className="mx-auto max-w-lg px-4 py-16">
         <div className="win-light p-4">
           <h1 className="font-pixel text-3xl text-navy">Bağlıdır</h1>
-          <p className="mt-2 font-sans text-sm text-navy">
-            Bu panel yalnız sahibi üçün açıqdır. Bu hesab redaktə edə bilməz.
+          <p className="mt-2 font-sans text-sm leading-relaxed text-navy">
+            Bu sessiya sahibi deyil. Redaktə üçün öz e-poçt və şifrənizlə daxil olun — telefon və ya başqa kompüterdən də.
           </p>
-          <div className="mt-4">
-            <UserButton />
-          </div>
+          <Link to="/login" data-tone="amber" className="win-btn mt-4">
+            E-poçt ilə daxil ol
+          </Link>
         </div>
       </main>
     );
@@ -223,7 +234,7 @@ function Editor() {
       </header>
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-3 py-4">
         <p className="font-sans text-sm leading-relaxed text-grey">
-          Buradakı mətnlər əsas saytın mətnləridir. Saxladıqdan sonra VEBINIO səhifəsi onları avtomatik göstərir.
+          Saxladıqdan sonra mətn əsas saytda özü görünür. Bu e-poçt və şifrə ilə istənilən kompüter və telefondan yenidən daxil ola bilərsiniz.
         </p>
         {status ? (
           <p className="win-light px-3 py-2 font-ui text-sm text-navy" role="status">

@@ -14,6 +14,17 @@ async function loadContent(sql: Sql): Promise<SiteContent> {
   }
 }
 
+async function hasPasswordAccount(sql: Sql, userId: string): Promise<boolean> {
+  const rows = await sql<{ id: string }>`
+    select id from "account"
+    where "userId" = ${userId}
+      and "providerId" = 'credential'
+      and "password" is not null
+    limit 1
+  `;
+  return rows.length > 0;
+}
+
 async function ownerId(sql: Sql): Promise<string | null> {
   const rows = await sql<{ user_id: string }>`select user_id from site_owner where id = 1`;
   return rows[0]?.user_id ?? null;
@@ -31,9 +42,11 @@ export const getSiteContent = createServerFn({ method: "GET" }).handler(async ()
 export const getOwnerGate = createServerFn({ method: "GET" }).handler(async () => {
   try {
     const sql = await getSql();
-    return { hasOwner: (await ownerId(sql)) !== null };
+    const owner = await ownerId(sql);
+    if (!owner) return { hasOwner: false, ownerHasPassword: false };
+    return { hasOwner: true, ownerHasPassword: await hasPasswordAccount(sql, owner) };
   } catch {
-    return { hasOwner: false };
+    return { hasOwner: false, ownerHasPassword: false };
   }
 });
 
@@ -41,9 +54,20 @@ export const claimOwner = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const sql = await getSql();
+    if (!(await hasPasswordAccount(sql, context.userId))) {
+      return { isOwner: false, needsPassword: true as const };
+    }
+    const current = await ownerId(sql);
+    if (current && current !== context.userId) {
+      if (await hasPasswordAccount(sql, current)) {
+        return { isOwner: false, needsPassword: false as const };
+      }
+      await sql`update site_owner set user_id = ${context.userId} where id = 1`;
+      return { isOwner: true, needsPassword: false as const };
+    }
     await sql`insert into site_owner (id, user_id) values (1, ${context.userId}) on conflict (id) do nothing`;
     const owner = await ownerId(sql);
-    return { isOwner: owner === context.userId };
+    return { isOwner: owner === context.userId, needsPassword: false as const };
   });
 
 export const getAdminSession = createServerFn({ method: "GET" })
@@ -51,11 +75,13 @@ export const getAdminSession = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sql = await getSql();
     const owner = await ownerId(sql);
-    const isOwner = owner === context.userId;
+    const viewerHasPassword = await hasPasswordAccount(sql, context.userId);
+    const ownerHasPassword = owner ? await hasPasswordAccount(sql, owner) : false;
+    const isOwner = owner === context.userId && viewerHasPassword;
     return {
-      hasOwner: owner !== null,
+      hasOwner: ownerHasPassword,
       isOwner,
-      content: isOwner || owner === null ? await loadContent(sql) : null,
+      content: isOwner ? await loadContent(sql) : null,
     };
   });
 
@@ -65,7 +91,7 @@ export const saveSiteContent = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const owner = await ownerId(sql);
-    if (owner !== context.userId) {
+    if (owner !== context.userId || !(await hasPasswordAccount(sql, context.userId))) {
       throw new Error("Forbidden");
     }
     const body = JSON.stringify(data);

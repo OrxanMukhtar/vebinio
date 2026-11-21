@@ -29,7 +29,7 @@ function Login() {
       setError(note);
     }
     getOwnerGate()
-      .then((gate) => setHasOwner(gate.hasOwner))
+      .then((gate) => setHasOwner(gate.hasOwner && gate.ownerHasPassword))
       .catch(() => setHasOwner(false));
   }, []);
 
@@ -63,6 +63,10 @@ function Login() {
         }
       }
       const claimed = await claimOwner();
+      if (claimed.needsPassword) {
+        setError("Bu sessiya e-poçt hesabı deyil. Öz e-poçtunuz və şifrənizlə hesab yaradın.");
+        return;
+      }
       if (!claimed.isOwner) {
         sessionStorage.setItem("vebinio.login.note", "Bu panel artıq başqa hesaba bağlıdır.");
         await signOut("/login");
@@ -99,8 +103,8 @@ function Login() {
             {hasOwner === null
               ? "Yoxlanılır…"
               : creating
-                ? "İlk hesab panelin sahibi olur. Sonra başqa hesab redaktə edə bilməz."
-                : "Mətnləri dəyişmək üçün öz hesabınızla daxil olun."}
+                ? "İlk e-poçt hesabı panelin sahibi olur. Eyni e-poçt və şifrə ilə telefon və başqa kompüterdən də redaktə edə bilərsiniz."
+                : "Öz e-poçt və şifrənizlə daxil olun. Hesab bütün cihazlarda eynidir."}
           </p>
           <label className="grid gap-1 font-ui text-sm font-bold text-navy">
             E-poçt
