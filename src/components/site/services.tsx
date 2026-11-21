@@ -11,11 +11,11 @@ export function Services({ services }: { services: SiteContent["services"] }) {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {services.items.map((service, index) => (
           <article
-            key={service.file}
+            key={`${service.file}-${index}`}
             className="win-dark flex flex-col transition-transform duration-150 ease-out hover:-translate-y-0.5"
           >
             <div className="win-title-dark flex items-center gap-2 px-2">
-              <PixelIcon name={ICONS[index]} className="size-5" />
+              <PixelIcon name={ICONS[index % ICONS.length]} className="size-5" />
               <p className="font-ui text-xs font-bold">{service.file}</p>
             </div>
             <div className="flex flex-1 flex-col gap-2 p-3">

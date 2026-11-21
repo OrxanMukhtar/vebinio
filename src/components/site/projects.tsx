@@ -1,7 +1,10 @@
 import { useCallback, useState } from "react";
 import type { SiteContent } from "@/lib/site/content";
+import { safeImage } from "@/lib/site/image";
 import { Dialog } from "./dialog";
 import { SectionHeading } from "./section-heading";
+
+const MOCKS = ["vitrin", "mozaika", "novbe", "katib"] as const;
 
 type Project = {
   id: string;
@@ -9,47 +12,9 @@ type Project = {
   category: string;
   summary: string;
   detail: string;
-  mock: "vitrin" | "mozaika" | "novbe" | "katib";
+  image: string;
+  mock: (typeof MOCKS)[number];
 };
-
-const PROJECTS: Project[] = [
-  {
-    id: "vitrin",
-    title: "Şəhər vitrini",
-    category: "Veb-sayt",
-    summary: "Yerli brend üçün sakit vitrin saytının interfeys konsepsiyası.",
-    detail:
-      "Bu, real müştəri işi deyil. Konsept ekran vitrin saytının strukturunu göstərir: qısa giriş, məhsul sırası və aydın hərəkət. Məqsəd səhifəni bəzək yığınına çevirmədən brendi oxunaqlı saxlamaqdır.",
-    mock: "vitrin",
-  },
-  {
-    id: "mozaika",
-    title: "Mozaika kimlik",
-    category: "Brendinq",
-    summary: "Loqo, rəng və tipo fayllarının bir qovluqda yığılmış kimlik konsepsiyası.",
-    detail:
-      "Konsept layihədir, tamamlanmış brend işi deyil. Fayl siyahısı kimlik sisteminin necə təhvil verilə biləcəyini göstərir: nişan, söz işarəsi, rəng qeydi və tipo. Heç bir real müştəri adı istifadə olunmur.",
-    mock: "mozaika",
-  },
-  {
-    id: "novbe",
-    title: "Növbə masası",
-    category: "Rəqəmsal məhsul",
-    summary: "Qəbul və növbə üçün sadə masaüstü cədvəl konsepsiyası.",
-    detail:
-      "Demo ekrandır. Növbə sətirləri, vəziyyət və qısa əməliyyat düyməsi bir pəncərədə durur. Məqsəd gündəlik prosesi mürəkkəb panelə çevirmədən izlənilən etməkdir.",
-    mock: "novbe",
-  },
-  {
-    id: "katib",
-    title: "Katib",
-    category: "AI həlli",
-    summary: "Uzun mətni qısa iş qeydinə yığan alətin masaüstü konsepsiyası.",
-    detail:
-      "Konsept layihədir. Sol tərəfdə mənbə mətn, sağda qısa xülasə və irəliləyiş zolağı var. Real model nəticəsi və ya müştəri sənədi kimi təqdim olunmur.",
-    mock: "katib",
-  },
-];
 
 function Mock({ kind }: { kind: Project["mock"] }) {
   if (kind === "vitrin") {
@@ -127,12 +92,14 @@ function Mock({ kind }: { kind: Project["mock"] }) {
 }
 
 export function Projects({ projects }: { projects: SiteContent["projects"] }) {
-  const items = PROJECTS.map((item, index) => ({
-    ...item,
-    title: projects.items[index].title,
-    category: projects.items[index].category,
-    summary: projects.items[index].summary,
-    detail: projects.items[index].detail,
+  const items: Project[] = projects.items.map((item, index) => ({
+    id: String(index),
+    title: item.title,
+    category: item.category,
+    summary: item.summary,
+    detail: item.detail,
+    image: safeImage(item.image) ?? "",
+    mock: MOCKS[index % MOCKS.length],
   }));
   const [openId, setOpenId] = useState<string | null>(null);
   const project = items.find((item) => item.id === openId) ?? null;
@@ -149,7 +116,11 @@ export function Projects({ projects }: { projects: SiteContent["projects"] }) {
               <p className="ml-auto font-ui text-xs">{item.category}</p>
             </div>
             <div className="p-3">
-              <Mock kind={item.mock} />
+              {item.image ? (
+                <img src={item.image} alt="" className="win-in max-h-52 w-full object-cover" />
+              ) : (
+                <Mock kind={item.mock} />
+              )}
               <h3 className="mt-3 font-pixel text-3xl leading-tight text-cream">{item.title}</h3>
               <p className="mt-1 font-sans text-sm leading-relaxed text-pretty text-grey">{item.summary}</p>
               <button type="button" className="win-btn mt-3" onClick={() => setOpenId(item.id)}>
@@ -163,7 +134,11 @@ export function Projects({ projects }: { projects: SiteContent["projects"] }) {
         {project ? (
           <div className="space-y-3">
             <p className="font-pixel text-2xl text-amber">{project.category}</p>
-            <Mock kind={project.mock} />
+            {project.image ? (
+              <img src={project.image} alt="" className="win-in max-h-64 w-full object-cover" />
+            ) : (
+              <Mock kind={project.mock} />
+            )}
             <p className="font-sans text-sm leading-relaxed text-pretty">{project.detail}</p>
             <p className="font-ui text-xs">Demo layihə · real müştəri işi deyil</p>
           </div>

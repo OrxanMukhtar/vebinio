@@ -1,4 +1,5 @@
 import type { SiteContent } from "@/lib/site/content";
+import { safeImage } from "@/lib/site/image";
 import { Mark } from "./logo";
 import { PixelIcon } from "./pixel-icon";
 import { WindowFrame } from "./window-frame";
@@ -46,9 +47,13 @@ export function Hero({ hero, nav }: { hero: SiteContent["hero"]; nav: SiteConten
                 </a>
               ))}
             </div>
-            <div className="mx-auto mt-2 w-full max-w-xs">
-              <Mark size="lg" alt="VEBINIO loqosu" />
-            </div>
+            {safeImage(hero.image) ? (
+              <img src={hero.image} alt={hero.kicker} className="mt-2 max-h-72 w-full object-cover" />
+            ) : (
+              <div className="mx-auto mt-2 w-full max-w-xs">
+                <Mark size="lg" alt="VEBINIO loqosu" />
+              </div>
+            )}
             <div className="win-light mt-3">
               <div className="win-title-light flex items-center gap-2 px-2">
                 <PixelIcon name="note" className="size-4 text-cream" />

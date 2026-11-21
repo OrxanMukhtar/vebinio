@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 const line = (max: number) => z.string().trim().min(1).max(max);
+const image = z
+  .string()
+  .max(420_000)
+  .refine((value) => value === "" || /^data:image\/(jpeg|png|webp);base64,/.test(value), "Şəkil formatı uyğun deyil.");
 const card = z.object({
   file: line(40),
   title: line(120),
@@ -11,6 +15,7 @@ const project = z.object({
   category: line(80),
   summary: line(400),
   detail: line(1200),
+  image,
 });
 const step = z.object({
   n: line(8),
@@ -36,18 +41,19 @@ export const siteContentSchema = z.object({
     primary: line(40),
     secondary: line(40),
     note: line(160),
+    image,
   }),
   services: z.object({
     file: line(40),
     title: line(80),
     text: line(400),
-    items: z.tuple([card, card, card, card]),
+    items: z.array(card).min(1).max(8),
   }),
   projects: z.object({
     file: line(40),
     title: line(80),
     text: line(400),
-    items: z.tuple([project, project, project, project]),
+    items: z.array(project).min(1).max(8),
   }),
   about: z.object({
     file: line(40),
@@ -97,6 +103,7 @@ export const defaultContent: SiteContent = {
     primary: "Xidmətlərimiz",
     secondary: "Bizimlə əlaqə",
     note: "İdeyan var. Gəlin onu reallaşdıraq.",
+    image: "",
   },
   services: {
     file: "XIDMETLER.EXE",
@@ -136,6 +143,7 @@ export const defaultContent: SiteContent = {
         summary: "Yerli brend üçün sakit vitrin saytının interfeys konsepsiyası.",
         detail:
           "Bu, real müştəri işi deyil. Konsept ekran vitrin saytının strukturunu göstərir: qısa giriş, məhsul sırası və aydın hərəkət. Məqsəd səhifəni bəzək yığınına çevirmədən brendi oxunaqlı saxlamaqdır.",
+        image: "",
       },
       {
         title: "Mozaika kimlik",
@@ -143,6 +151,7 @@ export const defaultContent: SiteContent = {
         summary: "Loqo, rəng və tipo fayllarının bir qovluqda yığılmış kimlik konsepsiyası.",
         detail:
           "Konsept layihədir, tamamlanmış brend işi deyil. Fayl siyahısı kimlik sisteminin necə təhvil verilə biləcəyini göstərir: nişan, söz işarəsi, rəng qeydi və tipo. Heç bir real müştəri adı istifadə olunmur.",
+        image: "",
       },
       {
         title: "Növbə masası",
@@ -150,6 +159,7 @@ export const defaultContent: SiteContent = {
         summary: "Qəbul və növbə üçün sadə masaüstü cədvəl konsepsiyası.",
         detail:
           "Demo ekrandır. Növbə sətirləri, vəziyyət və qısa əməliyyat düyməsi bir pəncərədə durur. Məqsəd gündəlik prosesi mürəkkəb panelə çevirmədən izlənilən etməkdir.",
+        image: "",
       },
       {
         title: "Katib",
@@ -157,6 +167,7 @@ export const defaultContent: SiteContent = {
         summary: "Uzun mətni qısa iş qeydinə yığan alətin masaüstü konsepsiyası.",
         detail:
           "Konsept layihədir. Sol tərəfdə mənbə mətn, sağda qısa xülasə və irəliləyiş zolağı var. Real model nəticəsi və ya müştəri sənədi kimi təqdim olunmur.",
+        image: "",
       },
     ],
   },
@@ -205,12 +216,62 @@ export const defaultContent: SiteContent = {
 };
 
 export function readContent(raw: unknown): SiteContent {
-  const parsed = siteContentSchema.safeParse(raw);
-  if (parsed.success) return parsed.data;
-  if (raw && typeof raw === "object") {
-    return siteContentSchema.parse({ ...defaultContent, ...(raw as object) });
-  }
-  return defaultContent;
+  const direct = siteContentSchema.safeParse(raw);
+  if (direct.success) return direct.data;
+  const repaired = siteContentSchema.safeParse(repairContent(raw));
+  return repaired.success ? repaired.data : defaultContent;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function repairContent(raw: unknown): unknown {
+  const root = asRecord(raw);
+  if (!root) return raw;
+  const hero = asRecord(root.hero) ?? {};
+  const services = asRecord(root.services) ?? {};
+  const projects = asRecord(root.projects) ?? {};
+  const projectItems = Array.isArray(projects.items)
+    ? projects.items.map((item) => {
+        const row = asRecord(item) ?? {};
+        return { ...row, image: typeof row.image === "string" ? row.image : "" };
+      })
+    : defaultContent.projects.items;
+  return {
+    ...defaultContent,
+    ...root,
+    nav: { ...defaultContent.nav, ...(asRecord(root.nav) ?? {}) },
+    hero: { ...defaultContent.hero, ...hero, image: typeof hero.image === "string" ? hero.image : "" },
+    services: { ...defaultContent.services, ...services },
+    projects: { ...defaultContent.projects, ...projects, items: projectItems },
+    about: { ...defaultContent.about, ...(asRecord(root.about) ?? {}) },
+    process: { ...defaultContent.process, ...(asRecord(root.process) ?? {}) },
+    cta: { ...defaultContent.cta, ...(asRecord(root.cta) ?? {}) },
+    contact: { ...defaultContent.contact, ...(asRecord(root.contact) ?? {}) },
+    footer: { ...defaultContent.footer, ...(asRecord(root.footer) ?? {}) },
+  };
+}
+
+export const MAX_CARDS = 8;
+
+export function blankService(): SiteContent["services"]["items"][number] {
+  return {
+    file: "YENI.EXE",
+    title: "Yeni xidmət",
+    text: "Bu kartın mətnini yazın.",
+  };
+}
+
+export function blankProject(): SiteContent["projects"]["items"][number] {
+  return {
+    title: "Yeni layihə",
+    category: "Konsept",
+    summary: "Qısa təsviri buraya yazın.",
+    detail: "Ətraflı mətni buraya yazın. Bu, konsept ekrandır və real müştəri işi deyil.",
+    image: "",
+  };
 }
 
 export const CONTENT_TICK = "vebinio.content.tick";

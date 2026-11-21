@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { WindowFrame } from "@/components/site/window-frame";
 import { getAdminSession, saveSiteContent } from "@/lib/site/api";
-import { pingContent, type SiteContent } from "@/lib/site/content";
+import { blankProject, blankService, MAX_CARDS, pingContent, type SiteContent } from "@/lib/site/content";
+import { fileToImage, safeImage } from "@/lib/site/image";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -49,11 +50,6 @@ const GROUPS: Array<{ title: string; fields: Field[] }> = [
       { path: "services.file", label: "Fayl adı" },
       { path: "services.title", label: "Başlıq" },
       { path: "services.text", label: "Açıqlama", long: true },
-      ...[0, 1, 2, 3].flatMap((index) => [
-        { path: `services.items.${index}.file`, label: `Kart ${index + 1} fayl` },
-        { path: `services.items.${index}.title`, label: `Kart ${index + 1} başlıq` },
-        { path: `services.items.${index}.text`, label: `Kart ${index + 1} mətn`, long: true },
-      ]),
     ],
   },
   {
@@ -62,12 +58,6 @@ const GROUPS: Array<{ title: string; fields: Field[] }> = [
       { path: "projects.file", label: "Fayl adı" },
       { path: "projects.title", label: "Başlıq" },
       { path: "projects.text", label: "Açıqlama", long: true },
-      ...[0, 1, 2, 3].flatMap((index) => [
-        { path: `projects.items.${index}.title`, label: `Layihə ${index + 1} ad` },
-        { path: `projects.items.${index}.category`, label: `Layihə ${index + 1} kateqoriya` },
-        { path: `projects.items.${index}.summary`, label: `Layihə ${index + 1} qısa`, long: true },
-        { path: `projects.items.${index}.detail`, label: `Layihə ${index + 1} ətraflı`, long: true },
-      ]),
     ],
   },
   {
@@ -129,6 +119,185 @@ function writePath(source: SiteContent, path: string, value: string): SiteConten
   }
   node[keys[keys.length - 1]] = value;
   return next;
+}
+
+function ImageField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState("");
+  const preview = safeImage(value);
+  return (
+    <div className="grid gap-2">
+      <span className="font-ui text-xs font-bold text-cream">{label}</span>
+      {preview ? <img src={preview} alt="" className="win-in max-h-44 w-full object-cover" /> : null}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="win-btn" onClick={() => inputRef.current?.click()}>
+          Şəkil seç
+        </button>
+        {preview ? (
+          <button type="button" className="win-btn" onClick={() => onChange("")}>
+            Şəkli sil
+          </button>
+        ) : null}
+      </div>
+      <input
+        ref={inputRef}
+        className="hidden"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+          setError("");
+          void fileToImage(file)
+            .then(onChange)
+            .catch(() => setError("Şəkil açılmadı və ya çox böyükdür. JPG, PNG və ya WEBP seçin."));
+        }}
+      />
+      {error ? <p className="font-sans text-sm text-amber">{error}</p> : null}
+    </div>
+  );
+}
+
+function ServiceList({
+  draft,
+  setDraft,
+}: {
+  draft: SiteContent;
+  setDraft: (next: SiteContent) => void;
+}) {
+  const items = draft.services.items;
+  function update(index: number, key: "file" | "title" | "text", value: string) {
+    setDraft({
+      ...draft,
+      services: {
+        ...draft.services,
+        items: items.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)),
+      },
+    });
+  }
+  return (
+    <div className="grid gap-3">
+      {items.map((item, index) => (
+        <div key={index} className="win-in grid gap-2 p-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-ui text-xs font-bold text-cream">Kart {index + 1}</p>
+            <button
+              type="button"
+              className="win-btn disabled:opacity-40"
+              disabled={items.length <= 1}
+              onClick={() =>
+                setDraft({
+                  ...draft,
+                  services: { ...draft.services, items: items.filter((_, itemIndex) => itemIndex !== index) },
+                })
+              }
+            >
+              Sil
+            </button>
+          </div>
+          <label className="grid gap-1 font-ui text-xs font-bold text-cream">
+            Fayl
+            <input className="win-field font-sans text-sm font-normal" value={item.file} onChange={(event) => update(index, "file", event.target.value)} />
+          </label>
+          <label className="grid gap-1 font-ui text-xs font-bold text-cream">
+            Başlıq
+            <input className="win-field font-sans text-sm font-normal" value={item.title} onChange={(event) => update(index, "title", event.target.value)} />
+          </label>
+          <label className="grid gap-1 font-ui text-xs font-bold text-cream">
+            Mətn
+            <textarea className="win-field min-h-20 font-sans text-sm font-normal" value={item.text} onChange={(event) => update(index, "text", event.target.value)} />
+          </label>
+        </div>
+      ))}
+      <button
+        type="button"
+        data-tone="amber"
+        className="win-btn disabled:opacity-40"
+        disabled={items.length >= MAX_CARDS}
+        onClick={() => setDraft({ ...draft, services: { ...draft.services, items: [...items, blankService()] } })}
+      >
+        Kart əlavə et
+      </button>
+    </div>
+  );
+}
+
+function ProjectList({
+  draft,
+  setDraft,
+}: {
+  draft: SiteContent;
+  setDraft: (next: SiteContent) => void;
+}) {
+  const items = draft.projects.items;
+  function update(index: number, key: "title" | "category" | "summary" | "detail" | "image", value: string) {
+    setDraft({
+      ...draft,
+      projects: {
+        ...draft.projects,
+        items: items.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)),
+      },
+    });
+  }
+  return (
+    <div className="grid gap-3">
+      {items.map((item, index) => (
+        <div key={index} className="win-in grid gap-2 p-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-ui text-xs font-bold text-cream">Layihə {index + 1}</p>
+            <button
+              type="button"
+              className="win-btn disabled:opacity-40"
+              disabled={items.length <= 1}
+              onClick={() =>
+                setDraft({
+                  ...draft,
+                  projects: { ...draft.projects, items: items.filter((_, itemIndex) => itemIndex !== index) },
+                })
+              }
+            >
+              Sil
+            </button>
+          </div>
+          <label className="grid gap-1 font-ui text-xs font-bold text-cream">
+            Ad
+            <input className="win-field font-sans text-sm font-normal" value={item.title} onChange={(event) => update(index, "title", event.target.value)} />
+          </label>
+          <label className="grid gap-1 font-ui text-xs font-bold text-cream">
+            Kateqoriya
+            <input className="win-field font-sans text-sm font-normal" value={item.category} onChange={(event) => update(index, "category", event.target.value)} />
+          </label>
+          <label className="grid gap-1 font-ui text-xs font-bold text-cream">
+            Qısa
+            <textarea className="win-field min-h-20 font-sans text-sm font-normal" value={item.summary} onChange={(event) => update(index, "summary", event.target.value)} />
+          </label>
+          <label className="grid gap-1 font-ui text-xs font-bold text-cream">
+            Ətraflı
+            <textarea className="win-field min-h-20 font-sans text-sm font-normal" value={item.detail} onChange={(event) => update(index, "detail", event.target.value)} />
+          </label>
+          <ImageField label="Şəkil" value={item.image} onChange={(image) => update(index, "image", image)} />
+        </div>
+      ))}
+      <button
+        type="button"
+        data-tone="amber"
+        className="win-btn disabled:opacity-40"
+        disabled={items.length >= MAX_CARDS}
+        onClick={() => setDraft({ ...draft, projects: { ...draft.projects, items: [...items, blankProject()] } })}
+      >
+        Layihə əlavə et
+      </button>
+    </div>
+  );
 }
 
 function AdminPage() {
@@ -262,6 +431,15 @@ function Editor() {
                   )}
                 </label>
               ))}
+              {group.title === "Hero" ? (
+                <ImageField
+                  label="Hero şəkli"
+                  value={draft.hero.image}
+                  onChange={(image) => setDraft({ ...draft, hero: { ...draft.hero, image } })}
+                />
+              ) : null}
+              {group.title === "Xidmətlər" ? <ServiceList draft={draft} setDraft={setDraft} /> : null}
+              {group.title === "Layihələr" ? <ProjectList draft={draft} setDraft={setDraft} /> : null}
             </div>
           </WindowFrame>
         ))}
