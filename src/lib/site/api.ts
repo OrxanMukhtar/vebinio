@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, type Sql } from "@/lib/db";
 import { defaultContent, readContent, siteContentSchema, type SiteContent } from "@/lib/site/content";
@@ -50,24 +51,72 @@ export const getOwnerGate = createServerFn({ method: "GET" }).handler(async () =
   }
 });
 
+async function claimWithPassword(sql: Sql, userId: string) {
+  if (!(await hasPasswordAccount(sql, userId))) {
+    return { isOwner: false, needsPassword: true as const, message: "" };
+  }
+  const current = await ownerId(sql);
+  if (current && current !== userId) {
+    if (await hasPasswordAccount(sql, current)) {
+      return { isOwner: false, needsPassword: false as const, message: "Bu panel artıq başqa hesaba bağlıdır." };
+    }
+    await sql`update site_owner set user_id = ${userId} where id = 1`;
+    return { isOwner: true, needsPassword: false as const, message: "" };
+  }
+  await sql`insert into site_owner (id, user_id) values (1, ${userId}) on conflict (id) do nothing`;
+  const owner = await ownerId(sql);
+  return { isOwner: owner === userId, needsPassword: false as const, message: "" };
+}
+
 export const claimOwner = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const sql = await getSql();
-    if (!(await hasPasswordAccount(sql, context.userId))) {
-      return { isOwner: false, needsPassword: true as const };
-    }
-    const current = await ownerId(sql);
-    if (current && current !== context.userId) {
-      if (await hasPasswordAccount(sql, current)) {
-        return { isOwner: false, needsPassword: false as const };
+    return claimWithPassword(sql, context.userId);
+  });
+
+const registerInput = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(8).max(128),
+});
+
+/**
+ * Bind an email and password to the current session, then make that person the
+ * owner. A Grok viewer is already signed in, and a brand-new account would be
+ * thrown away on the next request — so the password has to live on this session.
+ */
+export const registerOwner = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: unknown) => registerInput.parse(data))
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const email = data.email.toLowerCase();
+    const taken = await sql<{ id: string }>`
+      select id from "user" where lower(email) = ${email} and id <> ${context.userId}
+    `;
+    const otherId = taken[0]?.id;
+    if (otherId) {
+      const owner = await ownerId(sql);
+      if (owner === otherId && (await hasPasswordAccount(sql, otherId))) {
+        return { isOwner: false, message: "Bu e-poçt artıq sahib hesabıdır. Həmin şifrə ilə daxil olun." };
       }
-      await sql`update site_owner set user_id = ${context.userId} where id = 1`;
-      return { isOwner: true, needsPassword: false as const };
+      await sql`delete from "user" where id = ${otherId}`;
     }
-    await sql`insert into site_owner (id, user_id) values (1, ${context.userId}) on conflict (id) do nothing`;
-    const owner = await ownerId(sql);
-    return { isOwner: owner === context.userId, needsPassword: false as const };
+    if (!(await hasPasswordAccount(sql, context.userId))) {
+      const { hashPassword } = await import("better-auth/crypto");
+      const hash = await hashPassword(data.password);
+      const id = globalThis.crypto.randomUUID();
+      await sql`
+        insert into "account" ("id", "accountId", "providerId", "userId", "password", "createdAt", "updatedAt")
+        values (${id}, ${context.userId}, 'credential', ${context.userId}, ${hash}, now(), now())
+      `;
+    }
+    await sql`
+      update "user"
+      set email = ${email}, "emailVerified" = true, "updatedAt" = now()
+      where id = ${context.userId}
+    `;
+    return claimWithPassword(sql, context.userId);
   });
 
 export const getAdminSession = createServerFn({ method: "GET" })

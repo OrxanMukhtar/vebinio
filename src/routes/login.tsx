@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { authClient, signOut } from "@/lib/auth/client";
-import { claimOwner, getOwnerGate } from "@/lib/site/api";
+import { claimOwner, getOwnerGate, registerOwner } from "@/lib/site/api";
 import { Mark } from "@/components/site/logo";
 
 export const Route = createFileRoute("/login")({
@@ -13,6 +13,15 @@ export const Route = createFileRoute("/login")({
   }),
   component: Login,
 });
+
+function rememberSessionToken(token: string | null | undefined) {
+  if (!token) return;
+  try {
+    sessionStorage.setItem("grok-auth.bearer-token", token);
+  } catch {
+    /* private mode */
+  }
+}
 
 function Login() {
   const navigate = useNavigate();
@@ -46,6 +55,16 @@ function Login() {
     }
     setBusy(true);
     try {
+      const session = await authClient.getSession();
+      if (!hasOwner && session.data?.user) {
+        const bound = await registerOwner({ data: { email, password } });
+        if (!bound.isOwner) {
+          setError(bound.message || "Hesab bağlanmadı. E-poçtu və şifrəni yoxlayın.");
+          return;
+        }
+        await navigate({ to: "/admin" });
+        return;
+      }
       if (!hasOwner) {
         const created = await authClient.signUp.email({ email, password, name: "VEBINIO" });
         if (created.error) {
@@ -54,6 +73,9 @@ function Login() {
             setError("Hesab yaradılmadı. E-poçt artıq varsa, şifrəni yoxlayın.");
             return;
           }
+          rememberSessionToken(signed.data?.token);
+        } else {
+          rememberSessionToken(created.data?.token);
         }
       } else {
         const signed = await authClient.signIn.email({ email, password });
@@ -61,14 +83,20 @@ function Login() {
           setError("E-poçt və ya şifrə səhvdir.");
           return;
         }
+        rememberSessionToken(signed.data?.token);
       }
       const claimed = await claimOwner();
       if (claimed.needsPassword) {
-        setError("Bu sessiya e-poçt hesabı deyil. Öz e-poçtunuz və şifrənizlə hesab yaradın.");
+        const bound = await registerOwner({ data: { email, password } });
+        if (!bound.isOwner) {
+          setError(bound.message || "Bu sessiya e-poçta bağlanmadı. Yenidən cəhd edin.");
+          return;
+        }
+        await navigate({ to: "/admin" });
         return;
       }
       if (!claimed.isOwner) {
-        sessionStorage.setItem("vebinio.login.note", "Bu panel artıq başqa hesaba bağlıdır.");
+        sessionStorage.setItem("vebinio.login.note", claimed.message || "Bu panel artıq başqa hesaba bağlıdır.");
         await signOut("/login");
         return;
       }
