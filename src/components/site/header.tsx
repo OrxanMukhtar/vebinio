@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import type { SiteContent } from "@/lib/site/content";
 import { Mark } from "./logo";
 
@@ -58,6 +59,9 @@ export function Header({ nav }: { nav: SiteContent["nav"] }) {
           <a href="#elaqe" data-tone="amber" className="win-btn shrink-0">
             {nav.cta}
           </a>
+          <Link to="/admin" className="win-btn shrink-0">
+            İdarə
+          </Link>
           <button
             type="button"
             className="win-btn shrink-0 lg:hidden"
@@ -86,6 +90,9 @@ export function Header({ nav }: { nav: SiteContent["nav"] }) {
                 {link.label}
               </a>
             ))}
+            <Link to="/admin" className="win-btn" onClick={() => setOpen(false)}>
+              İdarə
+            </Link>
           </nav>
         ) : null}
       </div>
